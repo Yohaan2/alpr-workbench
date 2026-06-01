@@ -8,11 +8,12 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./dist:/usr/share/nginx/html:ro
+      - app_dist:/usr/share/nginx/html:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
     depends_on:
-      - alpr-workbench
+      alpr-workbench:
+        condition: service_completed_successfully
 
   alpr-workbench:
     build:
@@ -22,7 +23,10 @@ services:
         VITE_ALPR_ENDPOINT: ${VITE_ALPR_ENDPOINT:-https://tu-servicio.com/analyze}
     image: alpr-workbench:latest
     container_name: alpr-workbench
-    restart: unless-stopped
+    # Servicio "publisher": copia los estáticos al volumen y termina.
+    restart: "no"
+    volumes:
+      - app_dist:/shared
 
   certbot:
     image: certbot/certbot
@@ -31,3 +35,6 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done'"
+
+volumes:
+  app_dist:
